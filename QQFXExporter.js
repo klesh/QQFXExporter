@@ -146,71 +146,76 @@ var TLE = TLE || {};
         });
 
 
-var ARIA2 = (function() {
-  var jsonrpc_version = '2.0';
+  // 负责与 aria2-rpc 通信添加任务
+  var ARIA2 = (function() {
+    var jsonrpc_version = '2.0';
 
-  function get_auth(url) {
-    return url.match(/^(?:(?![^:@]+:[^:@\/]*@)[^:\/?#.]+:)?(?:\/\/)?(?:([^:@]*(?::[^:@]*)?)?@)?/)[1];
-  };
-
-  function request(jsonrpc_path, method, params) {
-    var request_obj = {
-      jsonrpc: jsonrpc_version,
-      method: method,
-      id: (new Date()).getTime().toString(),
+    function get_auth(url) {
+      return url.match(/^(?:(?![^:@]+:[^:@\/]*@)[^:\/?#.]+:)?(?:\/\/)?(?:([^:@]*(?::[^:@]*)?)?@)?/)[1];
     };
-    if (params) request_obj['params'] = params;
 
-    var xhr = new XMLHttpRequest();
-    var auth = get_auth(jsonrpc_path);
-    xhr.open("POST", jsonrpc_path+"?tm="+(new Date()).getTime().toString(), true);
-    xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
-    if (auth) xhr.setRequestHeader("Authorization", "Basic "+btoa(auth));
-    xhr.send(JSON.stringify(request_obj));
-  };
+    function request(jsonrpc_path, method, params) {
+      var request_obj = {
+        jsonrpc: jsonrpc_version,
+        method: method,
+        id: (new Date()).getTime().toString(),
+      };
+      if (params) request_obj['params'] = params;
 
-  return function(jsonrpc_path) {
-    this.jsonrpc_path = jsonrpc_path;
-    this.addUri = function (uri, options) {
-      request(this.jsonrpc_path, 'aria2.addUri', [[uri, ], options]);
+      var xhr = new XMLHttpRequest();
+      var auth = get_auth(jsonrpc_path);
+      xhr.open("POST", jsonrpc_path+"?tm="+(new Date()).getTime().toString(), true);
+      xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
+      if (auth) xhr.setRequestHeader("Authorization", "Basic "+btoa(auth));
+      xhr.send(JSON.stringify(request_obj));
     };
-    return this;
-  }
-})();
+
+    return function(jsonrpc_path) {
+      this.jsonrpc_path = jsonrpc_path;
+      this.addUri = function (uri, options) {
+        request(this.jsonrpc_path, 'aria2.addUri', [[uri, ], options]);
+      };
+      return this;
+    }
+  })();
 
 
 	//QQ旋风下载链接获取并转推至aria2-jsonrpc
 	function start_normal_down_paul_V2(filename,filehash){
-	$.ajax({
-			type: "POST",
-			url:"http://fenxiang.qq.com/upload/index.php/share/handler_c/getComUrl",
-			cache: false,
-			data:{"filename":filename,"filehash":filehash},
-			timeout:3000,
-			dataType: "json",
-			success:function(data){
-			  if(data&&data.ret==0){
-				 $.cookie('FTN5K',data.data.com_cookie,{path:"/",domain:"qq.com"});
-				 //window.location=data.data.com_url;
-				 //显示Aria2c下载命令
-				 //alert( "aria2c -c -s10 -x10 --out "+filename+" --header 'Cookie: FTN5K="+data.data.com_cookie+";' '"+data.data.com_url+"'\n"+","+$("#QQ_aria2_jsonrpc").val());				
-					if (jsonrpc_path) {
-					  console.log("添加中...到YAAW界面查看是否添加成功");
+    if (filename.indexOf('\n'))
+      filename = filename.split('\n')[1];
+    var rpcData = {"filename":filename,"filehash":filehash};
+    console.log(rpcData);
+    $.ajax({
+      type: "POST",
+      url:"http://fenxiang.qq.com/upload/index.php/share/handler_c/getComUrl",
+      cache: false,
+      data: rpcData,
+      timeout:3000,
+      dataType: "json",
+      success:function(data){
+        if(data&&data.ret==0){
+          $.cookie('FTN5K',data.data.com_cookie,{path:"/",domain:"qq.com"});
+          //window.location=data.data.com_url;
+          //显示Aria2c下载命令
+          //alert( "aria2c -c -s10 -x10 --out "+filename+" --header 'Cookie: FTN5K="+data.data.com_cookie+";' '"+data.data.com_url+"'\n"+","+$("#QQ_aria2_jsonrpc").val());				
+          if (jsonrpc_path) {
+            console.log("添加中...到YAAW界面查看是否添加成功");
 
             jsonrpc_path = $("#QQ_aria2_jsonrpc").val();
-						var aria2 = new ARIA2(jsonrpc_path);
-						aria2.addUri(data.data.com_url, {out: filename, header: 'Cookie: FTN5K='+data.data.com_cookie});
+            var aria2 = new ARIA2(jsonrpc_path);
+            aria2.addUri(data.data.com_url, {out: filename, header: 'Cookie: FTN5K='+data.data.com_cookie});
 
-					} else {
-					  alert("尚未设置Aria2 JSONRPC地址");
-					};
-			  }
-			 },
-			error:function(){
-				  XF.widget.msgbox.show("获取普通下载链失败,请重试!",2,2000);
-				 }
-	});
-	}	    
+          } else {
+            alert("尚未设置Aria2 JSONRPC地址");
+          };
+        }
+      },
+      error:function(){
+        XF.widget.msgbox.show("获取普通下载链失败,请重试!",2,2000);
+      }
+    });
+  }	    
     
 		
     //close menu binding
